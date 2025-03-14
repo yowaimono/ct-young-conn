@@ -154,9 +154,14 @@ class PortalAuth:
         try:
             print(f"request url: {url}")
             response = self.session.get(url,proxies = {'http': None, 'https': None})  # Use the session to send the request
-            if response.status_code == 200:
+            if response.status_code == 200 and "code[051]" in response.text:
+                print("密码错误")
+                return 4
+            elif response.status_code == 200:
+                
                 print(f"{action}请求成功！")
                 print("响应内容:", response.text)
+                return 0
             else:
                 print(f"{action}请求失败，状态码: {response.status_code}")
         except Exception as e:
@@ -271,15 +276,15 @@ class PortalAuth:
     def login(self):
         self.connect_to_wifi("CT-Young")
         time.sleep(1)
-        self.do_login()
+        return self.do_login()
         
     
 
     def do_login(self):
         """登录方法"""
 
-        self.load_username()
-        self.load_password()
+        # self.load_username()
+        # self.load_password()
 
         # 发送初始请求以获取重定向参数
         initial_url = "http://www.msftconnecttest.com/redirect"
@@ -297,7 +302,10 @@ class PortalAuth:
                 print("登录URL:", login_url)
 
                 # 发送登录请求
-                self._send_request(login_url, "登录")
+                result = self._send_request(login_url, "登录")
+                
+                if result:
+                    return result
 
                 # 登录成功后保存数据到文件
                 self._serialize_to_binary()
@@ -306,9 +314,10 @@ class PortalAuth:
             elif response.status_code == 502:
                 print("请关闭代理软件(VPN)")
                 return 1  # proxy error
+            
             else:
-                print("未收到重定向响应，可能已经登录。")
-                return 2  # login did
+                print("也许已经登陆过了")
+
         except Exception as e:
             print(f"初始请求发生错误: {e}")
             return 3
@@ -646,9 +655,10 @@ class PortalAuth:
             
 if __name__ == "__main__":
     # 登录
-
+    username ="2022102191"
+    password = "040503"
     auth = PortalAuth()
-    # auth.set_info(username,password)
-    result = auth.get_params()
+    auth.set_info(username,password)
+    result = auth.logout()
     
     print(result)
