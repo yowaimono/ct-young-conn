@@ -1,0 +1,92 @@
+body {
+  margin: 0px;
+}
+
+.home-container {
+  position: relative; /* 添加相对定位 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #a4dbd6;
+
+  .logout-icon {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    cursor: pointer;
+    color: #fff; /* 修改颜色为白色 */
+    font-size: 20px;
+    z-index: 10; /* 确保在其他元素之上 */
+
+    span {
+      padding: 5px 10px;
+      background-color: rgba(0, 0, 0, 0.2); /* 添加半透明背景 */
+      border-radius: 5px;
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.4); /* 鼠标悬停时加深背景 */
+      }
+    }
+  }
+
+  .home-card {
+    height: 400px;
+    width: 300px;
+    padding: 20px;
+    background-color: #a4dbd6;
+    //   border-radius: 8px;
+    //   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    color: #fff;
+    h2 {
+      margin-bottom: 20px;
+    }
+
+    .wifi-icon-row,
+    .wifi-status-row,
+    .wifi-keep-row,
+    .portal-action-row {
+      width: 100%;
+      margin-bottom: 15px;
+      // margin-left: 20px;
+      text-align: center;
+    }
+
+    .wifi-notice {
+      font-size: 12px;
+      padding: 5px;
+      color: red;
+    }
+
+    .wifi-icon-row {
+      font-size: 100px;
+      color: #fff;
+    }
+
+    .wifi-keep-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .switch {
+      margin-left: 10px;
+      width: 50px;
+      &:hover {
+        background-color: #024d45;
+      }
+    }
+
+    button {
+      padding: 10px 20px;
+      background-color: #0f9184;
+      color: #fff;
+      border: none;
+      border-radius: 16px;
+      cursor: pointer;
+
+      &:hover {
+        background-color: #024d45;
+      }
+    }
+  }
+}
