@@ -10,6 +10,18 @@ body {
   height: 100vh;
   background-color: #a4dbd6;
 
+  .copyright-text {
+    text-align: center;
+    margin-top: 2rem;
+    font-size: 0.8em;
+    color: #fff;
+    position: absolute;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+  }
+
   .logout-icon {
     position: absolute;
     top: 10px;

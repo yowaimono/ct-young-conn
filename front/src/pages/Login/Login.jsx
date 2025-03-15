@@ -45,7 +45,7 @@ const Login = () => {
 
         localStorage.setItem("username", account);
         localStorage.setItem("password", password);
-        await window.pywebview.api.get_params();
+        // await window.pywebview.api.get_params();
 
         navigate("/home");
 
@@ -78,6 +78,9 @@ const Login = () => {
                     />
                 </div>
                 <button onClick={handleLogin}>进入</button>
+            </div>
+            <div className="copyright-text">
+                Copyright © {new Date().getFullYear()} CT-Young. All Rights Reserved.
             </div>
         </div >
     );

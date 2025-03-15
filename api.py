@@ -27,6 +27,8 @@ if not os.path.exists(DEFAULT_AUTH_FILE):
         pass
 
 
+
+
 class PortalAuth:
     def __init__(self, username: str, password: str):
         self.username = username
@@ -154,7 +156,7 @@ class PortalAuth:
         try:
             print(f"request url: {url}")
             response = self.session.get(url,proxies = {'http': None, 'https': None})  # Use the session to send the request
-            if response.status_code == 200 and "code[051]" in response.text:
+            if response.status_code == 200 and "code[051]" in response.text and action == "登录":
                 print("密码错误")
                 return 4
             elif response.status_code == 200:
@@ -326,17 +328,19 @@ class PortalAuth:
         """注销方法"""
         # 尝试从文件加载参数
         
-        if not self.params and not self._deserialize_from_binary():
-            
-            print("未找到参数，请先登录。")
-            return
+        try:
+            if not self.params and not self._deserialize_from_binary():
+                print("未找到参数，请先登录。")
+                return 2 # 建议断开等一会儿重连
 
-        # 构建注销URL
-        logout_url = self._build_logout_url()
-        print("注销URL:", logout_url)
+            # 构建注销URL
+            logout_url = self._build_logout_url()
+            print("注销URL:", logout_url)
 
-        # 发送注销请求
-        self._send_request(logout_url, "注销")
+            # 发送注销请求
+            self._send_request(logout_url, "注销")
+        except:
+            return 1 # 错误
 
 
     def connect_to_wifi(self,ssid):
@@ -351,6 +355,13 @@ class PortalAuth:
         except subprocess.CalledProcessError as e:
             print(f"连接失败: {e}")
 
+    def disc(self):
+        try:
+            # 断开当前连接
+            subprocess.run(["netsh", "wlan", "disconnect"], check=True)
+            print("已断开连接")
+        except:
+            print("断开失败！")
 
 
     def get_current_wifi_ssid(self):
@@ -648,10 +659,72 @@ class PortalAuth:
             print(f"读取持久化文件失败: {e}")
             return False
     
-    def clear_data(self):
+    def clear_userinfo(self):
         filename = self.auth_file
-        os.remove(filename)
-        
+        """从持久化文件中删除用户名和密码，保留参数信息"""
+        try:
+            with open(filename, "rb+") as f:
+                # 读取整个文件内容
+                content = f.read()
+
+                # 如果文件为空，直接返回
+                if not content:
+                    print("文件为空，无需清理。")
+                    return
+
+                # 将用户名和密码部分替换为空字节
+                # 用户名和密码共占用 128 字节（64s + 64s）
+                empty_userinfo = b'\0' * 128
+
+                # 将文件指针移动到开头
+                f.seek(0)
+
+                # 写入空用户名和密码
+                f.write(empty_userinfo)
+
+                # 写入剩余的参数信息
+                f.write(content[128:])
+
+                print(f"用户名和密码已从 {filename} 中删除，参数信息保留。")
+
+            # 清空内存中的用户名和密码
+            self.username = None
+            self.password = None
+
+        except FileNotFoundError:
+            print(f"文件 {filename} 不存在")
+        except Exception as e:
+            print(f"清理用户信息失败: {e}")
+
+    
+    def is_first_login(self) -> bool:
+        """判断是否是初次登录"""
+        filename = self.auth_file
+        try:
+            with open(filename, "rb") as f:
+                # 读取整个文件内容
+                content = f.read()
+
+                # 如果文件为空，认为是初次登录
+                if not content:
+                    return True
+
+                # 读取参数段（假设参数段从第 128 字节开始）
+                params = content[128:]
+
+                # 如果参数段为空或全为默认值（例如全为 0），认为是初次登录
+                if not params or all(byte == 0 for byte in params):
+                    return True
+
+                # 否则，认为不是初次登录
+                return False
+
+        except FileNotFoundError:
+            # 如果文件不存在，认为是初次登录
+            return True
+        except Exception as e:
+            print(f"判断初次登录失败: {e}")
+            return True
             
 if __name__ == "__main__":
     # 登录
