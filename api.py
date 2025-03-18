@@ -339,40 +339,74 @@ class PortalAuth:
 
             # 发送注销请求
             self._send_request(logout_url, "注销")
+            
+            return 0 # 注销成功
         except:
             return 1 # 错误
 
 
-    def connect_to_wifi(self,ssid):
+    def connect_to_wifi(self, ssid):
         """连接到指定的 WiFi 网络"""
         try:
+            # 设置启动信息，隐藏窗口
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = subprocess.SW_HIDE
+
             # 断开当前连接
-            subprocess.run(["netsh", "wlan", "disconnect"], check=True)
+            subprocess.run(
+                ["netsh", "wlan", "disconnect"],
+                check=True,
+                startupinfo=startupinfo,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
 
             # 连接到指定的开放 WiFi
-            subprocess.run(["netsh", "wlan", "connect", f"name={ssid}"], check=True)
+            subprocess.run(
+                ["netsh", "wlan", "connect", f"name={ssid}"],
+                check=True,
+                startupinfo=startupinfo,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
             print(f"已成功连接到 WiFi: {ssid}")
         except subprocess.CalledProcessError as e:
             print(f"连接失败: {e}")
 
     def disc(self):
         try:
+            # 设置启动信息，隐藏窗口
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = subprocess.SW_HIDE
+
             # 断开当前连接
-            subprocess.run(["netsh", "wlan", "disconnect"], check=True)
+            subprocess.run(
+                ["netsh", "wlan", "disconnect"],
+                check=True,
+                startupinfo=startupinfo,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
             print("已断开连接")
-        except:
-            print("断开失败！")
+        except subprocess.CalledProcessError as e:
+            print(f"断开失败: {e}")
 
 
     def get_current_wifi_ssid(self):
         """获取当前连接的 WiFi 网络的 SSID"""
+        # 设置启动信息，隐藏窗口
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+
         # 执行 netsh 命令获取 Wi-Fi 接口信息，并显式指定编码为 utf-8
         result = subprocess.run(
             ["netsh", "wlan", "show", "interfaces"],
             capture_output=True,
             text=True,
             encoding="utf-8",
-            errors="ignore"  # 忽略无法解码的字符
+            errors="ignore",  # 忽略无法解码的字符
+            startupinfo=startupinfo,
+            creationflags=subprocess.CREATE_NO_WINDOW  # 隐藏窗口
         )
 
         # 检查命令是否成功执行
@@ -385,7 +419,6 @@ class PortalAuth:
 
         # 如果匹配到 SSID，返回结果
         if match:
-            logging.info(f"current connected wifi: {match.group(1).strip()}")
             return match.group(1).strip()
         else:
             return None
@@ -576,23 +609,25 @@ class PortalAuth:
             try:
                 ssid = self.get_current_wifi_ssid()  # Replace with your actual function
                 if ssid:
-                    logging.info(f"当前连接的 Wi-Fi 热点: {ssid}")
+                    #logging.info(f"当前连接的 Wi-Fi 热点: {ssid}")
                     if ssid == self.target_ssid:
-                        logging.info("已连接目标网络")
+                        pass
+                        #logging.info("已连接目标网络")
                         # self.login()  # Replace with your actual login function
                     else:
-                        logging.info("当前连接的非校园网，尝试连接{self.target_ssid}...")
+                       # logging.info("当前连接的非校园网，尝试连接{self.target_ssid}...")
                         self.connect_to_wifi(self.target_ssid)  # Replace with your actual function
                         self.login()
-                        logging.info(f"已尝试连接到目标网络：{self.target_ssid}")
+                        #logging.info(f"已尝试连接到目标网络：{self.target_ssid}")
                 else:
-                    logging.info("未连接到任何 Wi-Fi 热点")
-                    logging.info(f"尝试连接到目标网络：{self.target_ssid}")
+                   # logging.info("未连接到任何 Wi-Fi 热点")
+                    #logging.info(f"尝试连接到目标网络：{self.target_ssid}")
                     self.connect_to_wifi(self.target_ssid)  # Replace with your actual function
                     self.login()
-                    logging.info(f"已尝试连接到目标网络：{self.target_ssid}")
+                    #logging.info(f"已尝试连接到目标网络：{self.target_ssid}")
             except Exception as e:
-                logging.error(f"发生错误：{e}")
+                pass
+                #logging.error(f"发生错误：{e}")
             time.sleep(self.check_interval)
 
     def start_task(self, ssid, interval):

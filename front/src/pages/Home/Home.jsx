@@ -34,31 +34,36 @@ function Home() {
         }
     }, [isFirstLogin, countdown]);
 
-    // useEffect(() => {
-    //     const fetchCurrWifi = async () => {
-    //         if (isInitialLoginInProgress) return; // 如果正在初次登录，跳过
-    //         try {
-    //             const ssid = await window.pywebview.api.get_current_wifi_ssid();
-    //             setCurrWifi(ssid);
-    //             const status = await window.pywebview.api.is_connected();
+    useEffect(() => {
+        const fetchCurrWifi = async () => {
+            if (isInitialLoginInProgress) return; // 如果正在初次登录，跳过
+            try {
+                const ssid = await window.pywebview.api.get_current_wifi_ssid();
+                setCurrWifi(ssid);
 
-    //             if (!status) {
-    //                 setWifiStatus("注：当前未连接到CT-Young,点击登录连接");
-    //             } else {
-    //                 setWifiStatus(null); // 连接成功时清除提示
-    //             }
-    //         } catch (error) {
-    //             console.error("获取 Wi-Fi 状态失败:", error);
-    //             setCurrWifi(null);
-    //             setWifiStatus("获取 Wi-Fi 状态失败，请检查网络");
-    //         }
-    //     };
+                if (ssid != "CT-Young") {
+                    console.log("当前连接的非校园网");
+                    setWifiStatus("注：当前未连接到CT-Young,点击登录连接");
+                }
+                // const status = await window.pywebview.api.is_connected();
 
-    //     fetchCurrWifi();
-    //     const intervalId = setInterval(fetchCurrWifi, 3000);
+                // if (!status) {
+                //     setWifiStatus("注：当前未连接到CT-Young,点击登录连接");
+                // } else {
+                //     setWifiStatus(null); // 连接成功时清除提示
+                // }
+            } catch (error) {
+                console.error("获取 Wi-Fi 状态失败:", error);
+                setCurrWifi(null);
+                // setWifiStatus("获取 Wi-Fi 状态失败，请检查网络");
+            }
+        };
 
-    //     return () => clearInterval(intervalId);
-    // }, [isInitialLoginInProgress]); // 依赖项添加标志位
+        fetchCurrWifi();
+        const intervalId = setInterval(fetchCurrWifi, 3000);
+
+        return () => clearInterval(intervalId);
+    }, [isInitialLoginInProgress]); // 依赖项添加标志位
 
     const handleWifiKeepToggle = async (checked) => {
         setWifiKeepEnabled(checked);
@@ -116,7 +121,25 @@ function Home() {
     const handlePortalAction = async () => {
         try {
             if (wifiStatus === null) {
-                await window.pywebview.api.logout();
+                const flag = await window.pywebview.api.logout();
+
+                switch (flag) {
+                    case 0:
+                        console.log("注销成功！");
+                        setWifiStatus("已注销，请重新登录。");
+                        break;
+                    case 1:
+                        console.log("请求发送失败");
+                        setWifiStatus("服务器繁忙，稍后发送。");
+                        break;
+                    case 2:
+                        console.log("基础信息损坏，请退出重新登录。");
+                        setWifiStatus("异常错误，请退出重新登录。");
+                        break;
+                    default:
+                        break;
+                }
+
                 setWifiStatus("注：已注销，请重新登录");
                 console.log("注销");
             } else {
@@ -127,7 +150,7 @@ function Home() {
                     setIsButtonDisabled(true);
                     try {
                         await window.pywebview.api.disc();
-                        setWifiStatus("初次登录需要等待3分钟...");
+                        setWifiStatus("初次登录需要等待5分钟...");
                         setIsButtonDisabled(true);
                         setCountdown(300);
                     } catch (error) {
