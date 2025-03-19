@@ -9,12 +9,13 @@ from typing import Dict, Optional
 from urllib.parse import urlparse, parse_qs
 import time
 import os
-# 配置日志记录
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+import logging.handlers  # 导入 logging.handlers 模块
 
+# 配置日志记录
 USER_HOME = os.path.expanduser("~")
 AUTH_DIR = os.path.join(USER_HOME, ".portalauth")
 DEFAULT_AUTH_FILE = os.path.join(AUTH_DIR, "auth.data")
+LOG_FILE = os.path.join(AUTH_DIR, "app.log")  # 定义日志文件路径
 
 # 确保目录存在
 if not os.path.exists(AUTH_DIR):
@@ -26,8 +27,20 @@ if not os.path.exists(DEFAULT_AUTH_FILE):
         # 创建一个空文件
         pass
 
+# 配置日志记录器
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)  # 设置日志级别
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')  # 设置日志格式
 
-
+# 创建 RotatingFileHandler，实现日志文件分割
+rotating_handler = logging.handlers.RotatingFileHandler(
+    LOG_FILE,  # 日志文件路径
+    maxBytes=5 * 1024 * 1024,  # 每个文件最大 5MB
+    backupCount=5,  # 保留最近的 5 个文件
+    encoding='utf-8'  # 设置编码
+)
+rotating_handler.setFormatter(formatter)  # 设置日志格式
+logger.addHandler(rotating_handler)  # 将 handler 添加到 logger
 
 class PortalAuth:
     def __init__(self, username: str, password: str):
@@ -83,7 +96,7 @@ class PortalAuth:
 
 
     def set_info(self,username: str, password: str):
-        logging.info(f"set username: {username},password: {password}")
+        logger.info(f"set username: {username},password: {password}")
         self.username = username
         self.password = password
         self.save_username()
@@ -95,7 +108,7 @@ class PortalAuth:
         try:
             location = response.headers.get("Location", "")
             if not location:
-                print("未找到重定向URL，可能已经登录。")
+                logger.info("未找到重定向URL，可能已经登录。")
                 return None
 
             params = {
@@ -106,7 +119,7 @@ class PortalAuth:
             }
             return params
         except Exception as e:
-            print(f"提取参数失败: {e}")
+            logger.error(f"提取参数失败: {e}")
             return None
 
     def _build_login_url(self) -> str:
@@ -154,27 +167,31 @@ class PortalAuth:
     def _send_request(self, url: str, action: str):
         """发送请求"""
         try:
-            print(f"request url: {url}")
+            logger.info(f"request url: {url}")
             response = self.session.get(url,proxies = {'http': None, 'https': None})  # Use the session to send the request
             if response.status_code == 200 and "code[051]" in response.text and action == "登录":
-                print("密码错误")
+                logger.info("密码错误")
                 return 4
+            elif response.status_code == 200 and "注销失败" in response.text and action == "注销":
+                logger.info(f"{action}发送成功！")
+                logger.info("响应内容:", response.text)
+                return 3;
             elif response.status_code == 200:
                 
-                print(f"{action}请求成功！")
-                print("响应内容:", response.text)
+                logger.info(f"{action}发送成功！")
+                logger.info("响应内容:", response.text)
                 return 0
             else:
-                print(f"{action}请求失败，状态码: {response.status_code}")
+                logger.info(f"{action}请求失败，状态码: {response.status_code}")
         except Exception as e:
-            print(f"请求发生错误: {e}")
+            logger.error(f"请求发生错误: {e}")
 
     def _serialize_to_binary(self):
         filename = self.auth_file
         
         """将用户信息和参数序列化到二进制文件"""
         if not self.params:
-            print("没有可保存的参数。")
+            logger.info("没有可保存的参数。")
             return
 
         # 将用户信息和参数打包为二进制
@@ -191,7 +208,7 @@ class PortalAuth:
         with open(filename, "wb") as f:
             f.write(userinfo)
             f.write(params)
-        print(f"数据已保存到 {filename}")
+        logger.info(f"数据已保存到 {filename}")
 
     def _deserialize_from_binary(self) -> bool:
         filename = self.auth_file
@@ -213,13 +230,13 @@ class PortalAuth:
                     "wlanacip": wlanacip.decode("utf-8").rstrip("\x00"),
                     "usermac": usermac.decode("utf-8").rstrip("\x00"),
                 }
-            print(f"数据已从 {filename} 加载")
+            logger.info(f"数据已从 {filename} 加载")
             return True
         except FileNotFoundError:
-            print(f"文件 {filename} 不存在")
+            logger.info(f"文件 {filename} 不存在")
             return False
         except Exception as e:
-            print(f"读取文件失败: {e}")
+            logger.error(f"读取文件失败: {e}")
             return False
         
         
@@ -244,7 +261,7 @@ class PortalAuth:
 
                     # 将列表值转换为单个字符串值 (如果需要)
                     params = {k: v[0] if isinstance(v, list) and len(v) == 1 else v for k, v in query_params.items()}
-                    print(params);
+                    logger.info(params);
                     # return params
                     params = {
                         "wlanuserip": re.search(r"wlanuserip=([^&]+)", location).group(1),
@@ -260,17 +277,17 @@ class PortalAuth:
                     time.sleep(1)
 
                 else:
-                    print("重定向响应中缺少 Location 头。")
+                    logger.info("重定向响应中缺少 Location 头。")
                     # return None
             else:
-                print(f"未收到重定向响应，状态码: {response.status_code}")
+                logger.info(f"未收到重定向响应，状态码: {response.status_code}")
                 # return None
 
         except requests.exceptions.RequestException as e:
-            print(f"请求发生错误: {e}")
+            logger.error(f"请求发生错误: {e}")
             # return None
         except Exception as e:
-            print(f"提取参数失败: {e}")
+            logger.error(f"提取参数失败: {e}")
             # return None
 
             
@@ -296,12 +313,12 @@ class PortalAuth:
             if response.status_code == 302:
                 self.params = self._extract_params_from_redirect(response)
                 if not self.params:
-                    print("无法提取参数，可能已经登录。")
+                    logger.info("无法提取参数，可能已经登录。")
                     return 2
 
                 # 构建登录URL
                 login_url = self._build_login_url()
-                print("登录URL:", login_url)
+                logger.info("登录URL:", login_url)
 
                 # 发送登录请求
                 result = self._send_request(login_url, "登录")
@@ -314,14 +331,14 @@ class PortalAuth:
 
                 return 0  # login successfull
             elif response.status_code == 502:
-                print("请关闭代理软件(VPN)")
+                logger.info("请关闭代理软件(VPN)")
                 return 1  # proxy error
             
             else:
-                print("也许已经登陆过了")
+                logger.info("也许已经登陆过了")
 
         except Exception as e:
-            print(f"初始请求发生错误: {e}")
+            logger.error(f"初始请求发生错误: {e}")
             return 3
 
     def logout(self):
@@ -330,15 +347,19 @@ class PortalAuth:
         
         try:
             if not self.params and not self._deserialize_from_binary():
-                print("未找到参数，请先登录。")
+                logger.info("未找到参数，请先登录。")
                 return 2 # 建议断开等一会儿重连
 
             # 构建注销URL
             logout_url = self._build_logout_url()
-            print("注销URL:", logout_url)
+            logger.info("注销URL:", logout_url)
 
             # 发送注销请求
-            self._send_request(logout_url, "注销")
+            res =  self._send_request(logout_url, "注销")
+            
+            if res == 3: 
+                return 3
+            
             
             return 0 # 注销成功
         except:
@@ -368,9 +389,9 @@ class PortalAuth:
                 startupinfo=startupinfo,
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
-            print(f"已成功连接到 WiFi: {ssid}")
+            logger.info(f"已成功连接到 WiFi: {ssid}")
         except subprocess.CalledProcessError as e:
-            print(f"连接失败: {e}")
+            logger.error(f"连接失败: {e}")
 
     def disc(self):
         try:
@@ -386,9 +407,9 @@ class PortalAuth:
                 startupinfo=startupinfo,
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
-            print("已断开连接")
+            logger.info("已断开连接")
         except subprocess.CalledProcessError as e:
-            print(f"断开失败: {e}")
+            logger.error(f"断开失败: {e}")
 
 
     def get_current_wifi_ssid(self):
@@ -461,10 +482,10 @@ class PortalAuth:
                 # 写入参数信息
                 f.write(content[128:])
 
-            print(f"用户名已保存到 {filename}")
+            logger.info(f"用户名已保存到 {filename}")
 
         except Exception as e:
-            print(f"保存用户名失败: {e}")
+            logger.error(f"保存用户名失败: {e}")
 
     def load_username(self):
         filename = self.auth_file
@@ -475,13 +496,13 @@ class PortalAuth:
                 userinfo = f.read(64)  # 64字节
                 username = struct.unpack("!64s", userinfo)[0]
                 self.username = username.decode("utf-8").rstrip("\x00")
-            print(f"用户名已从 {filename} 加载")
+            logger.info(f"用户名已从 {filename} 加载")
             return True
         except FileNotFoundError:
-            print(f"文件 {filename} 不存在")
+            logger.info(f"文件 {filename} 不存在")
             return False
         except Exception as e:
-            print(f"读取用户名失败: {e}")
+            logger.error(f"读取用户名失败: {e}")
             return False
 
     def save_password(self):
@@ -517,10 +538,10 @@ class PortalAuth:
                 f.seek(128)
                 f.write(content[128:])
 
-            print(f"密码已保存到 {filename}")
+            logger.info(f"密码已保存到 {filename}")
 
         except Exception as e:
-            print(f"保存密码失败: {e}")
+            logger.error(f"保存密码失败: {e}")
 
     def load_password(self):
         filename = self.auth_file
@@ -532,20 +553,20 @@ class PortalAuth:
                 password_info = f.read(64)  # 64字节
                 password = struct.unpack("!64s", password_info)[0]
                 self.password = password.decode("utf-8").rstrip("\x00")
-            print(f"密码已从 {filename} 加载")
+            logger.info(f"密码已从 {filename} 加载")
             return True
         except FileNotFoundError:
-            print(f"文件 {filename} 不存在")
+            logger.info(f"文件 {filename} 不存在")
             return False
         except Exception as e:
-            print(f"读取密码失败: {e}")
+            logger.error(f"读取密码失败: {e}")
             return False
 
     def save_params_to_binary(self):
         filename = self.auth_file
         """将参数保存到二进制文件"""
         if not self.params:
-            print("没有可保存的参数。")
+            logger.info("没有可保存的参数。")
             return
 
         try:
@@ -574,10 +595,10 @@ class PortalAuth:
                 f.seek(0)
                 f.write(content[:128])
 
-            print(f"参数已保存到 {filename}")
+            logger.info(f"参数已保存到 {filename}")
 
         except Exception as e:
-            print(f"保存参数失败: {e}")
+            logger.error(f"保存参数失败: {e}")
 
     def load_params_from_binary(self):
         filename = self.auth_file
@@ -594,13 +615,13 @@ class PortalAuth:
                     "wlanacip": wlanacip.decode("utf-8").rstrip("\x00"),
                     "usermac": usermac.decode("utf-8").rstrip("\x00"),
                 }
-            print(f"参数已从 {filename} 加载")
+            logger.info(f"参数已从 {filename} 加载")
             return True
         except FileNotFoundError:
-            print(f"文件 {filename} 不存在")
+            logger.info(f"文件 {filename} 不存在")
             return False
         except Exception as e:
-            print(f"读取参数失败: {e}")
+            logger.error(f"读取参数失败: {e}")
             return False
 
 
@@ -609,30 +630,30 @@ class PortalAuth:
             try:
                 ssid = self.get_current_wifi_ssid()  # Replace with your actual function
                 if ssid:
-                    #logging.info(f"当前连接的 Wi-Fi 热点: {ssid}")
+                    logger.info(f"当前连接的 Wi-Fi 热点: {ssid}")
                     if ssid == self.target_ssid:
                         pass
-                        #logging.info("已连接目标网络")
+                        logger.info("已连接目标网络")
                         # self.login()  # Replace with your actual login function
                     else:
-                       # logging.info("当前连接的非校园网，尝试连接{self.target_ssid}...")
+                        logger.info("当前连接的非校园网，尝试连接{self.target_ssid}...")
                         self.connect_to_wifi(self.target_ssid)  # Replace with your actual function
                         self.login()
-                        #logging.info(f"已尝试连接到目标网络：{self.target_ssid}")
+                        logger.info(f"已尝试连接到目标网络：{self.target_ssid}")
                 else:
-                   # logging.info("未连接到任何 Wi-Fi 热点")
-                    #logging.info(f"尝试连接到目标网络：{self.target_ssid}")
+                    logger.info("未连接到任何 Wi-Fi 热点")
+                    logger.info(f"尝试连接到目标网络：{self.target_ssid}")
                     self.connect_to_wifi(self.target_ssid)  # Replace with your actual function
                     self.login()
-                    #logging.info(f"已尝试连接到目标网络：{self.target_ssid}")
+                    logger.info(f"已尝试连接到目标网络：{self.target_ssid}")
             except Exception as e:
                 pass
-                #logging.error(f"发生错误：{e}")
+                logger.error(f"发生错误：{e}")
             time.sleep(self.check_interval)
 
     def start_task(self, ssid, interval):
         if self.running:
-            logging.warning("Wi-Fi connector is already running. Stop it first.")
+            logger.warning("Wi-Fi connector is already running. Stop it first.")
             return
 
         self.target_ssid = ssid
@@ -641,7 +662,7 @@ class PortalAuth:
         self.thread = threading.Thread(target=self.connect_loop)
         self.thread.daemon = True
         self.thread.start()
-        logging.info(f"Wi-Fi connector started in the background, connecting to {ssid} every {interval} seconds.")
+        logger.info(f"Wi-Fi connector started in the background, connecting to {ssid} every {interval} seconds.")
 
 
     def stop_task(self):
@@ -649,24 +670,24 @@ class PortalAuth:
             self.running = False
             if self.thread:
                 self.thread.join()
-            logging.info("Wi-Fi connector stopped.")
+            logger.info("Wi-Fi connector stopped.")
             self.target_ssid = None  # Reset SSID and interval
             self.check_interval = None
             self.thread = None # Reset the thread
         else:
-            logging.warning("Wi-Fi connector is not running.")
+            logger.warning("Wi-Fi connector is not running.")
         
     
     def check_status(self):
         login_result = self.login()
         if login_result == 0:
-            logging.info("登录成功，任务完成")
+            logger.info("登录成功，任务完成")
             self.status = 1 # 连接登陆成功
         elif login_result == 1:
-            logging.error("代理错误，请关闭 VPN 或代理软件")
+            logger.error("代理错误，请关闭 VPN 或代理软件")
             self.status = 2 #连接登陆未完成
         elif login_result == 2:
-            logging.info("已经登录，任务完成")
+            logger.info("已经登录，任务完成")
             self.status = 3 # 连接并登录
             
     def is_login(self) -> bool:
@@ -682,16 +703,16 @@ class PortalAuth:
 
                 # 检查用户名和密码是否为空
                 if username and password:
-                    print(f"持久化文件中包含账号和密码: 用户名={username}, 密码={password}")
+                    logger.info(f"持久化文件中包含账号和密码: 用户名={username}, 密码={password}")
                     return True
                 else:
-                    print("持久化文件中没有有效的账号和密码。")
+                    logger.info("持久化文件中没有有效的账号和密码。")
                     return False
         except FileNotFoundError:
-            print(f"文件 {filename} 不存在")
+            logger.info(f"文件 {filename} 不存在")
             return False
         except Exception as e:
-            print(f"读取持久化文件失败: {e}")
+            logger.error(f"读取持久化文件失败: {e}")
             return False
     
     def clear_userinfo(self):
@@ -704,7 +725,7 @@ class PortalAuth:
 
                 # 如果文件为空，直接返回
                 if not content:
-                    print("文件为空，无需清理。")
+                    logger.info("文件为空，无需清理。")
                     return
 
                 # 将用户名和密码部分替换为空字节
@@ -720,16 +741,16 @@ class PortalAuth:
                 # 写入剩余的参数信息
                 f.write(content[128:])
 
-                print(f"用户名和密码已从 {filename} 中删除，参数信息保留。")
+                logger.info(f"用户名和密码已从 {filename} 中删除，参数信息保留。")
 
             # 清空内存中的用户名和密码
             self.username = None
             self.password = None
 
         except FileNotFoundError:
-            print(f"文件 {filename} 不存在")
+            logger.info(f"文件 {filename} 不存在")
         except Exception as e:
-            print(f"清理用户信息失败: {e}")
+            logger.error(f"清理用户信息失败: {e}")
 
     
     def is_first_login(self) -> bool:
@@ -758,7 +779,7 @@ class PortalAuth:
             # 如果文件不存在，认为是初次登录
             return True
         except Exception as e:
-            print(f"判断初次登录失败: {e}")
+            logger.error(f"判断初次登录失败: {e}")
             return True
             
 if __name__ == "__main__":
@@ -766,7 +787,3 @@ if __name__ == "__main__":
     username ="2022102191"
     password = "040503"
     auth = PortalAuth()
-    auth.set_info(username,password)
-    result = auth.logout()
-    
-    print(result)
