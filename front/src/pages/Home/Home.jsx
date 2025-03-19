@@ -44,6 +44,11 @@ function Home() {
                 if (ssid != "CT-Young") {
                     console.log("当前连接的非校园网");
                     setWifiStatus("注：当前未连接到CT-Young,点击登录连接");
+                } else {
+                    setWifiStatus("注：已成功连接CT-Young");
+                    setTimeout(() => {
+                        setWifiStatus(null);
+                    }, 3000);
                 }
                 // const status = await window.pywebview.api.is_connected();
 
