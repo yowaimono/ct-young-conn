@@ -1,0 +1,19 @@
+.container {
+  background-color: #a4dbd6;
+
+  .switch.ant-switch-checked {
+    background-color: #22c5b7;
+  }
+
+  .back {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 20px;
+    color: white;
+  }
+}
+
+body {
+  margin: 0px;
+}

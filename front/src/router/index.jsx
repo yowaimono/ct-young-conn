@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import { Navigate } from "react-router-dom";
+import Settings from "../pages/Settings/Settings";
 // 使用 lazy 动态导入组件
 const Login = lazy(() => import("../pages/Login/Login"));
 const Home = lazy(() => import("../pages/Home/Home"));
@@ -14,6 +15,11 @@ const routes = [
     path: "/home",
     element: <Home />, // 确保包含 element
   },
+  {
+    path: "/settings",
+    element: <Settings />
+  },
+
   {
     path: "/", // 添加根路径路由
     element: <Navigate to="/login" replace />, // 重定向到 /login

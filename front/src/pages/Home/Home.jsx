@@ -5,7 +5,7 @@ import { MdWifi, MdWifiOff } from 'react-icons/md';
 import { Switch } from 'antd';
 import { FiLogOut } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
-
+import { FiSettings } from "react-icons/fi";
 // 定义 Wi-Fi 状态枚举
 const WifiStatus = {
     IDLE: 'IDLE', // 空闲状态
@@ -139,6 +139,31 @@ function Home() {
         };
 
         checkFirstLogin();
+
+        const loadConfig = async () => {
+            // 加载
+            try {
+                if (window.pywebview && window.pywebview.api && window.pywebview.api.get_config) {
+                    const config = await window.pywebview.api.get_config();
+                    console.log("Initial config:", config);
+                    // 成功拿到
+                    localStorage.setItem("config", JSON.stringify(config));
+
+
+                    if (config.mode == 1) {
+                        setWifiKeepEnabled(true);
+                    }
+
+                } else {
+                    console.warn("pywebview function 'get_config' is not available. Using default values.");
+                }
+            } catch (error) {
+                console.error("Error fetching config:", error);
+            }
+
+        }
+
+        loadConfig();
     }, []);
 
 
@@ -206,7 +231,7 @@ function Home() {
         setWifiKeepEnabled(checked);
         try {
             if (checked) {
-                await window.pywebview.api.start_task("CT-Young", 5);
+                await window.pywebview.api.start_task("CT-Young");
                 console.log('Wi-Fi Keep 已启动');
             } else {
                 await window.pywebview.api.stop_task();
@@ -304,12 +329,21 @@ function Home() {
         navigate("/login");
     };
 
+    const handleSetting = async () => {
+        console.log("设置");
+        navigate("/settings");
+    }
+
     const statusMessage = getStatusMessage();
 
     return (
         <div className="home-container">
             <div className="logout-icon" onClick={handleLogout}>
                 <FiLogOut />
+            </div>
+
+            <div className="settings-icon" onClick={handleSetting}>
+                <FiSettings />
             </div>
             <div className="home-card">
                 <div className="wifi-icon-row">
