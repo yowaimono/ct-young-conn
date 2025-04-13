@@ -4,7 +4,9 @@
 
 支持主动保持连接，每隔一段时间检测并自动认证。
 
-![alt text](image.png)
+![alt text](docs/image.png)
+
+![alt text](docs/image-1.png)
 
 支持一键上下线，为其他设备腾出空间。
 
